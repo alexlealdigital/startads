@@ -1,11 +1,50 @@
-from flask import Flask, jsonify
+from flask import Flask, request, jsonify
+import sqlite3
+import os
 
-app = Flask(__name__)  # Certifique-se de que essa linha existe
+app = Flask(__name__)
 
-# Rota de teste
+DB_PATH = "ads.db"
+
+# Inicializa o banco de dados SQLite
+def init_db():
+    if not os.path.exists(DB_PATH):
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS anuncios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                image TEXT,
+                link TEXT,
+                description TEXT
+            )
+        """)
+        conn.commit()
+        conn.close()
+
+init_db()
+
+# Rota de teste (Hello, World!)
 @app.route("/", methods=["GET"])
 def home():
     return jsonify({"message": "Hello, World!"})
 
-if __name__ == "__main__":
-    app.run(debug=True)
+# Rota para listar os anúncios
+@app.route("/ads", methods=["GET"])
+def get_ads():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM anuncios")
+    ads = cursor.fetchall()
+    conn.close()
+
+    ad_list = [{"id": row[0], "image": row[1], "link": row[2], "description": row[3]} for row in ads]
+    return jsonify(ad_list)
+
+# Rota para adicionar um novo anúncio
+@app.route("/ads", methods=["POST"])
+def add_ad():
+    data = request.json
+    image = data.get("image")
+    link = data.get("link")
+   
