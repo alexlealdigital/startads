@@ -20,6 +20,11 @@ def save_ads(ads):
     with open(DB_FILE, "w") as f:
         json.dump(ads, f, indent=4)
 
+# Rota raiz para testar se a API está rodando
+@app.route("/", methods=["GET"])
+def home():
+    return jsonify({"message": "API está rodando!"}), 200
+
 # Rota para listar os anúncios
 @app.route("/ads", methods=["GET"])
 def get_ads():
@@ -57,4 +62,5 @@ def add_ad():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 10000))  # Corrigindo a porta
+    app.run(host="0.0.0.0", port=port, debug=True)
