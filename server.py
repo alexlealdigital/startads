@@ -1,40 +1,30 @@
 from flask import Flask, request, jsonify
-import sqlite3
+import json
 import os
 
 app = Flask(__name__)
 
-DB_PATH = "ads.db"
+DB_FILE = "ads.json"
 
-# Inicializa o banco de dados SQLite
-def init_db():
-    if not os.path.exists(DB_PATH):
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS anuncios (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                image TEXT,
-                link TEXT,
-                description TEXT
-            )
-        """)
-        conn.commit()
-        conn.close()
+# Função para carregar os anúncios do JSON
+def load_ads():
+    if not os.path.exists(DB_FILE):
+        with open(DB_FILE, "w") as f:
+            json.dump([], f)
+    
+    with open(DB_FILE, "r") as f:
+        return json.load(f)
 
-init_db()
+# Função para salvar os anúncios no JSON
+def save_ads(ads):
+    with open(DB_FILE, "w") as f:
+        json.dump(ads, f, indent=4)
 
 # Rota para listar os anúncios
 @app.route("/ads", methods=["GET"])
 def get_ads():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM anuncios")
-    ads = cursor.fetchall()
-    conn.close()
-
-    ad_list = [{"id": row[0], "image": row[1], "link": row[2], "description": row[3]} for row in ads]
-    return jsonify(ad_list), 200
+    ads = load_ads()
+    return jsonify(ads), 200
 
 # Rota para adicionar um novo anúncio
 @app.route("/ads", methods=["POST"])
@@ -42,25 +32,29 @@ def add_ad():
     try:
         data = request.get_json()
         if not data:
-            return jsonify({"error": "Requisição sem dados"}), 400  # Retorno correto
+            return jsonify({"error": "Requisição sem dados"}), 400
 
         image = data.get("image")
         link = data.get("link")
         description = data.get("description")
 
         if not image or not link or not description:
-            return jsonify({"error": "Todos os campos são obrigatórios"}), 400  # Retorno correto
+            return jsonify({"error": "Todos os campos são obrigatórios"}), 400
 
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO anuncios (image, link, description) VALUES (?, ?, ?)", (image, link, description))
-        conn.commit()
-        conn.close()
+        ads = load_ads()
+        new_ad = {
+            "id": len(ads) + 1,
+            "image": image,
+            "link": link,
+            "description": description
+        }
+        ads.append(new_ad)
+        save_ads(ads)
 
-        return jsonify({"message": "Anúncio salvo com sucesso!"}), 201  # Retorno correto
+        return jsonify({"message": "Anúncio salvo com sucesso!"}), 201
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500  # Retorno correto
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(debug=True)
