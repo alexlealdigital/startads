@@ -1,66 +1,61 @@
 from flask import Flask, request, jsonify
-import json
-import os
+import firebase_admin
+from firebase_admin import credentials, db
 
 app = Flask(__name__)
 
-DB_FILE = "ads.json"
+# 🔹 Configuração do Firebase
+cred = credentials.Certificate("firebase_key.json")  # Seu arquivo de credenciais do Firebase
+firebase_admin.initialize_app(cred, {
+    "databaseURL": "https://SEU_PROJETO.firebaseio.com/"  # Substituir pelo seu URL do Firebase
+})
 
-# Função para carregar os anúncios do JSON
+# 🔹 Função para carregar anúncios do Firebase
 def load_ads():
-    if not os.path.exists(DB_FILE):
-        with open(DB_FILE, "w") as f:
-            json.dump([], f)
-    
-    with open(DB_FILE, "r") as f:
-        return json.load(f)
+    ref = db.reference("ads")
+    ads = ref.get()
+    return ads if ads else []
 
-# Função para salvar os anúncios no JSON
-def save_ads(ads):
-    with open(DB_FILE, "w") as f:
-        json.dump(ads, f, indent=4)
+# 🔹 Função para salvar anúncios no Firebase
+def save_ad(image, link, description):
+    ref = db.reference("ads")
+    new_ad = {
+        "id": ref.push().key,  # 🔹 Gera um ID único para cada anúncio
+        "image": image,
+        "link": link,
+        "description": description
+    }
+    ref.child(new_ad["id"]).set(new_ad)
+    return new_ad
 
-# Rota raiz para testar se a API está rodando
-@app.route("/", methods=["GET"])
-def home():
-    return jsonify({"message": "API está rodando!"}), 200
-
-# Rota para listar os anúncios
+# 🔹 Rota para listar os anúncios
 @app.route("/ads", methods=["GET"])
 def get_ads():
     ads = load_ads()
     return jsonify(ads), 200
 
-# Rota para adicionar um novo anúncio
+# 🔹 Rota para adicionar um novo anúncio
 @app.route("/ads", methods=["POST"])
 def add_ad():
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"error": "Requisição sem dados"}), 400
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Requisição sem dados"}), 400
 
-        image = data.get("image")
-        link = data.get("link")
-        description = data.get("description")
+    image = data.get("image")
+    link = data.get("link")
+    description = data.get("description")
 
-        if not image or not link or not description:
-            return jsonify({"error": "Todos os campos são obrigatórios"}), 400
+    if not image or not link or not description:
+        return jsonify({"error": "Todos os campos são obrigatórios"}), 400
 
-        ads = load_ads()
-        new_ad = {
-            "id": len(ads) + 1,
-            "image": image,
-            "link": link,
-            "description": description
-        }
-        ads.append(new_ad)
-        save_ads(ads)
+    new_ad = save_ad(image, link, description)
 
-        return jsonify({"message": "Anúncio salvo com sucesso!"}), 201
+    return jsonify({"message": "Anúncio salvo com sucesso!", "ad": new_ad}), 201
 
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+# 🔹 Teste da API
+@app.route("/", methods=["GET"])
+def home():
+    return jsonify({"message": "API está rodando com Firebase!"}), 200
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))  # Corrigindo a porta
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=10000, debug=True)
