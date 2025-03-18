@@ -9,18 +9,18 @@ from tkinter import Tk, filedialog
 IMGUR_CLIENT_ID = "8823fb7cd2338d3"
 IMGUR_UPLOAD_URL = "https://api.imgur.com/3/upload"
 
-# 🔹 Carregar chave do Firebase do ambiente (Render)
+# 🔹 Carregar chave do Firebase do ambiente
 firebase_key_json = os.environ.get("FIREBASE_KEY")
 
 if firebase_key_json:
-    cred_dict = json.loads(firebase_key_json)  # Converte a string JSON para um dicionário
+    cred_dict = json.loads(firebase_key_json)
     cred = credentials.Certificate(cred_dict)
     firebase_admin.initialize_app(cred, {
         "databaseURL": "https://adsdados-default-rtdb.firebaseio.com/"
     })
 else:
     print("❌ ERRO: A variável de ambiente FIREBASE_KEY não foi encontrada.")
-    exit(1)  # Para a execução do programa se a chave não for encontrada
+    exit(1)
 
 # 📌 Função para selecionar imagem
 def select_image():
@@ -59,15 +59,6 @@ def save_to_firebase(image_url, description, link):
     except Exception as e:
         print(f"❌ Erro ao salvar no Firebase: {e}")
 
-# 📌 Função para validar entradas do usuário
-def get_valid_input(prompt, max_length=55, is_link=False):
-    while True:
-        user_input = input(prompt)[:max_length]
-        if is_link and not user_input.startswith(("http://", "https://")):
-            print("⚠️ O link deve começar com 'http://' ou 'https://'. Tente novamente.")
-            continue
-        return user_input
-
 # 🚀 Fluxo do Programa
 def main():
     print("📌 Selecione uma imagem para o anúncio")
@@ -84,8 +75,8 @@ def main():
         print("❌ Falha ao obter URL da imagem. Encerrando processo.")
         return
     
-    description = get_valid_input("📝 Digite a descrição do anúncio (máx. 55 caracteres): ")
-    link = get_valid_input("🔗 Digite o link do botão: ", is_link=True)
+    description = input("📝 Digite a descrição do anúncio (máx. 55 caracteres): ")[:55]
+    link = input("🔗 Digite o link do botão: ")
     
     print("⏳ Salvando anúncio no Firebase...")
     save_to_firebase(image_url, description, link)
