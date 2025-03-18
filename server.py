@@ -4,6 +4,13 @@ import os
 import firebase_admin
 from firebase_admin import credentials, db
 from tkinter import Tk, filedialog
+from flask import Flask
+
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return "API está rodando!"
 
 # 🔹 Configurações do Imgur
 IMGUR_CLIENT_ID = "8823fb7cd2338d3"
