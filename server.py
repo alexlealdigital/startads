@@ -1,94 +1,67 @@
-import requests
-import json
-import os
+from flask import Flask, request, jsonify
 import firebase_admin
 from firebase_admin import credentials, db
-from tkinter import Tk, filedialog
-from flask import Flask
+import os
+import json
 
 app = Flask(__name__)
 
-@app.route("/")
-def home():
-    return "API está rodando!"
-
-# 🔹 Configurações do Imgur
-IMGUR_CLIENT_ID = "8823fb7cd2338d3"
-IMGUR_UPLOAD_URL = "https://api.imgur.com/3/upload"
-
-# 🔹 Carregar chave do Firebase do ambiente
+# 🔹 Configuração do Firebase (usando variável de ambiente do Render)
 firebase_key_json = os.environ.get("FIREBASE_KEY")
 
 if firebase_key_json:
-    cred_dict = json.loads(firebase_key_json)
+    cred_dict = json.loads(firebase_key_json)  # Converte JSON para dicionário
     cred = credentials.Certificate(cred_dict)
     firebase_admin.initialize_app(cred, {
         "databaseURL": "https://adsdados-default-rtdb.firebaseio.com/"
     })
 else:
-    print("❌ ERRO: A variável de ambiente FIREBASE_KEY não foi encontrada.")
+    print("❌ ERRO: Variável FIREBASE_KEY não encontrada.")
     exit(1)
 
-# 📌 Função para selecionar imagem
-def select_image():
-    root = Tk()
-    root.withdraw()
-    file_path = filedialog.askopenfilename(title="Selecione uma imagem", filetypes=[("Imagens", "*.png;*.jpg;*.jpeg")])
-    return file_path
+# 🔹 Função para carregar os anúncios do Firebase
+def load_ads():
+    ref = db.reference("ads")
+    ads = ref.get()
+    return list(ads.values()) if ads else []  # Retorna lista vazia se não houver anúncios
 
-# 📌 Função para fazer upload da imagem para o Imgur
-def upload_to_imgur(image_path):
-    try:
-        with open(image_path, "rb") as image_file:
-            headers = {"Authorization": f"Client-ID {IMGUR_CLIENT_ID}"}
-            files = {"image": image_file}
-            response = requests.post(IMGUR_UPLOAD_URL, headers=headers, files=files)
-            
-            if response.status_code == 200:
-                return response.json()["data"]["link"]
-            else:
-                print(f"❌ Erro no Imgur: {response.status_code} - {response.json()}")
-                return None
-    except Exception as e:
-        print(f"❌ Erro inesperado ao enviar imagem: {e}")
-        return None
+# 🔹 Rota para testar se a API está rodando
+@app.route("/", methods=["GET"])
+def home():
+    return jsonify({"message": "API está rodando!"}), 200
 
-# 📌 Função para salvar anúncio no Firebase
-def save_to_firebase(image_url, description, link):
+# 🔹 Rota para buscar todos os anúncios
+@app.route("/ads", methods=["GET"])
+def get_ads():
+    ads = load_ads()
+    return jsonify(ads), 200
+
+# 🔹 Rota para adicionar um novo anúncio
+@app.route("/ads", methods=["POST"])
+def add_ad():
     try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Dados inválidos"}), 400
+
+        image = data.get("image")
+        link = data.get("link")
+        description = data.get("description")
+
+        if not image or not link or not description:
+            return jsonify({"error": "Todos os campos são obrigatórios"}), 400
+
         ref = db.reference("ads")
-        ref.push({
-            "image": image_url,
-            "description": description,
-            "link": link
+        new_ad_ref = ref.push({
+            "image": image,
+            "link": link,
+            "description": description
         })
-        print("✅ Anúncio salvo no Firebase com sucesso!")
-    except Exception as e:
-        print(f"❌ Erro ao salvar no Firebase: {e}")
 
-# 🚀 Fluxo do Programa
-def main():
-    print("📌 Selecione uma imagem para o anúncio")
-    image_path = select_image()
-    
-    if not image_path:
-        print("❌ Nenhuma imagem selecionada.")
-        return
-    
-    print("⏳ Fazendo upload para o Imgur...")
-    image_url = upload_to_imgur(image_path)
-    
-    if not image_url:
-        print("❌ Falha ao obter URL da imagem. Encerrando processo.")
-        return
-    
-    description = input("📝 Digite a descrição do anúncio (máx. 55 caracteres): ")[:55]
-    link = input("🔗 Digite o link do botão: ")
-    
-    print("⏳ Salvando anúncio no Firebase...")
-    save_to_firebase(image_url, description, link)
-    
-    print(f"🎉 Anúncio criado com sucesso! \n🖼 {image_url} \n📝 {description} \n🔗 {link}")
+        return jsonify({"message": "Anúncio salvo com sucesso!", "id": new_ad_ref.key}), 201
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    main()
+    app.run(host="0.0.0.0", port=10000, debug=True)
