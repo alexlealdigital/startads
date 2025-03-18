@@ -1,5 +1,6 @@
 import requests
 import json
+import os
 import firebase_admin
 from firebase_admin import credentials, db
 from tkinter import Tk, filedialog
@@ -8,11 +9,18 @@ from tkinter import Tk, filedialog
 IMGUR_CLIENT_ID = "8823fb7cd2338d3"
 IMGUR_UPLOAD_URL = "https://api.imgur.com/3/upload"
 
-# 🔹 Configuração do Firebase
-cred = credentials.Certificate("firebase_key.json")
-firebase_admin.initialize_app(cred, {
-    "databaseURL": "https://adsdados-default-rtdb.firebaseio.com/"
-})
+# 🔹 Carregar chave do Firebase do ambiente (Render)
+firebase_key_json = os.environ.get("FIREBASE_KEY")
+
+if firebase_key_json:
+    cred_dict = json.loads(firebase_key_json)  # Converte a string JSON para um dicionário
+    cred = credentials.Certificate(cred_dict)
+    firebase_admin.initialize_app(cred, {
+        "databaseURL": "https://adsdados-default-rtdb.firebaseio.com/"
+    })
+else:
+    print("❌ ERRO: A variável de ambiente FIREBASE_KEY não foi encontrada.")
+    exit(1)  # Para a execução do programa se a chave não for encontrada
 
 # 📌 Função para selecionar imagem
 def select_image():
@@ -23,26 +31,42 @@ def select_image():
 
 # 📌 Função para fazer upload da imagem para o Imgur
 def upload_to_imgur(image_path):
-    with open(image_path, "rb") as image_file:
-        headers = {"Authorization": f"Client-ID {IMGUR_CLIENT_ID}"}
-        files = {"image": image_file}
-        response = requests.post(IMGUR_UPLOAD_URL, headers=headers, files=files)
-        
-        if response.status_code == 200:
-            return response.json()["data"]["link"]
-        else:
-            print("❌ Erro ao enviar imagem para o Imgur:", response.json())
-            return None
+    try:
+        with open(image_path, "rb") as image_file:
+            headers = {"Authorization": f"Client-ID {IMGUR_CLIENT_ID}"}
+            files = {"image": image_file}
+            response = requests.post(IMGUR_UPLOAD_URL, headers=headers, files=files)
+            
+            if response.status_code == 200:
+                return response.json()["data"]["link"]
+            else:
+                print(f"❌ Erro no Imgur: {response.status_code} - {response.json()}")
+                return None
+    except Exception as e:
+        print(f"❌ Erro inesperado ao enviar imagem: {e}")
+        return None
 
 # 📌 Função para salvar anúncio no Firebase
 def save_to_firebase(image_url, description, link):
-    ref = db.reference("ads")
-    new_ad = ref.push({
-        "image": image_url,
-        "description": description,
-        "link": link
-    })
-    print("✅ Anúncio salvo no Firebase com sucesso!")
+    try:
+        ref = db.reference("ads")
+        ref.push({
+            "image": image_url,
+            "description": description,
+            "link": link
+        })
+        print("✅ Anúncio salvo no Firebase com sucesso!")
+    except Exception as e:
+        print(f"❌ Erro ao salvar no Firebase: {e}")
+
+# 📌 Função para validar entradas do usuário
+def get_valid_input(prompt, max_length=55, is_link=False):
+    while True:
+        user_input = input(prompt)[:max_length]
+        if is_link and not user_input.startswith(("http://", "https://")):
+            print("⚠️ O link deve começar com 'http://' ou 'https://'. Tente novamente.")
+            continue
+        return user_input
 
 # 🚀 Fluxo do Programa
 def main():
@@ -60,8 +84,8 @@ def main():
         print("❌ Falha ao obter URL da imagem. Encerrando processo.")
         return
     
-    description = input("📝 Digite a descrição do anúncio (máx. 55 caracteres): ")[:55]
-    link = input("🔗 Digite o link do botão: ")
+    description = get_valid_input("📝 Digite a descrição do anúncio (máx. 55 caracteres): ")
+    link = get_valid_input("🔗 Digite o link do botão: ", is_link=True)
     
     print("⏳ Salvando anúncio no Firebase...")
     save_to_firebase(image_url, description, link)
