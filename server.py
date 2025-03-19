@@ -19,11 +19,19 @@ else:
     print("❌ ERRO: Variável FIREBASE_KEY não encontrada.")
     exit(1)
 
+# 🔹 Referências do Firebase
+ads_ref = db.reference("ads")  # Banco de anúncios
+codes_ref = db.reference("codes")  # Banco de códigos PIX
+
 # 🔹 Função para carregar os anúncios do Firebase
 def load_ads():
-    ref = db.reference("ads")
-    ads = ref.get()
-    return list(ads.values()) if ads else []  # Retorna lista vazia se não houver anúncios
+    ads = ads_ref.get()
+    return list(ads.values()) if ads else []
+
+# 🔹 Função para carregar os códigos PIX válidos
+def load_valid_codes():
+    codes = codes_ref.get()
+    return set(codes.keys()) if codes else set()  # Retorna um conjunto de códigos válidos
 
 # 🔹 Rota para testar se a API está rodando
 @app.route("/", methods=["GET"])
@@ -36,7 +44,20 @@ def get_ads():
     ads = load_ads()
     return jsonify(ads), 200
 
-# 🔹 Rota para adicionar um novo anúncio
+# 🔹 Rota para validar código PIX
+@app.route("/validate_code", methods=["POST"])
+def validate_code():
+    data = request.get_json()
+    code = data.get("code")
+
+    valid_codes = load_valid_codes()
+
+    if code in valid_codes:
+        codes_ref.child(code).delete()  # Remove código do Firebase
+        return jsonify({"message": "✅ Código válido! Envio liberado."}), 200
+    return jsonify({"error": "❌ Código inválido ou já utilizado!"}), 400
+
+# 🔹 Rota para adicionar um novo anúncio (AGORA COM CÓDIGO PIX)
 @app.route("/ads", methods=["POST"])
 def add_ad():
     try:
@@ -44,21 +65,29 @@ def add_ad():
         if not data:
             return jsonify({"error": "Dados inválidos"}), 400
 
+        code = data.get("code")  # Código PIX fornecido pelo usuário
         image = data.get("image")
         link = data.get("link")
         description = data.get("description")
 
-        if not image or not link or not description:
+        if not code or not image or not link or not description:
             return jsonify({"error": "Todos os campos são obrigatórios"}), 400
 
-        ref = db.reference("ads")
-        new_ad_ref = ref.push({
+        valid_codes = load_valid_codes()
+        if code not in valid_codes:
+            return jsonify({"error": "❌ Código inválido ou já utilizado!"}), 400
+
+        # 🔹 Remove código PIX após uso
+        codes_ref.child(code).delete()
+
+        # 🔹 Salva o anúncio no Firebase
+        new_ad_ref = ads_ref.push({
             "image": image,
             "link": link,
             "description": description
         })
 
-        return jsonify({"message": "Anúncio salvo com sucesso!", "id": new_ad_ref.key}), 201
+        return jsonify({"message": "✅ Anúncio salvo com sucesso!", "id": new_ad_ref.key}), 201
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
