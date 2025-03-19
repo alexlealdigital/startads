@@ -10,13 +10,11 @@ app = Flask(__name__)
 firebase_key_json = os.environ.get("FIREBASE_KEY")
 
 if firebase_key_json:
-    cred_dict = json.loads(firebase_key_json)
+    cred_dict = json.loads(firebase_key_json)  # Converte JSON para dicionário
     cred = credentials.Certificate(cred_dict)
-
-    if not firebase_admin._apps:  # Garante que o Firebase só seja inicializado uma vez
-        firebase_admin.initialize_app(cred, {
-            "databaseURL": "https://adsdados-default-rtdb.firebaseio.com/"
-        })
+    firebase_admin.initialize_app(cred, {
+        "databaseURL": "https://adsdados-default-rtdb.firebaseio.com/"
+    })
 else:
     print("❌ ERRO: Variável FIREBASE_KEY não encontrada.")
     exit(1)
@@ -38,7 +36,7 @@ def get_ads():
     ads = load_ads()
     return jsonify(ads), 200
 
-# 🔹 Rota para adicionar um novo anúncio (com verificação de código)
+# 🔹 Rota para adicionar um novo anúncio (verifica código antes)
 @app.route("/ads", methods=["POST"])
 def add_ad():
     try:
@@ -52,27 +50,47 @@ def add_ad():
         code = data.get("code")  # Código fornecido pelo usuário
 
         if not image or not link or not description or not code:
-            return jsonify({"error": "Todos os campos são obrigatórios, incluindo o código"}), 400
+            return jsonify({"error": "Todos os campos são obrigatórios"}), 400
 
-        # 🔹 Verifica se o código é válido no Firebase
+        # 🔹 Verifica se o código de pagamento é válido
         codes_ref = db.reference("codes")
-        code_exists = codes_ref.child(code).get()
+        valid_code = codes_ref.child(code).get()
 
-        if not code_exists:
-            return jsonify({"error": "Código inválido ou já utilizado"}), 403  # Retorna erro se o código não for encontrado
+        if not valid_code:
+            return jsonify({"error": "Código inválido ou já utilizado"}), 400
 
-        # 🔹 Remove o código do banco de dados (para que ele seja usado apenas uma vez)
-        codes_ref.child(code).delete()
-
-        # 🔹 Salva o anúncio no Firebase
-        ads_ref = db.reference("ads")
-        new_ad_ref = ads_ref.push({
+        # 🔹 Adiciona o anúncio ao Firebase
+        ref = db.reference("ads")
+        new_ad_ref = ref.push({
             "image": image,
             "link": link,
             "description": description
         })
 
-        return jsonify({"message": "Anúncio salvo com sucesso!", "id": new_ad_ref.key}), 201
+        # 🔹 Deleta o código usado para evitar reutilização
+        codes_ref.child(code).delete()
+
+        return jsonify({"message": "✅ Anúncio salvo com sucesso!", "id": new_ad_ref.key}), 201
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# 🔹 Rota para adicionar códigos de pagamento ao Firebase
+@app.route("/add_codes", methods=["POST"])
+def add_codes():
+    try:
+        data = request.get_json()
+        codes = data.get("codes", [])
+
+        if not codes:
+            return jsonify({"error": "Nenhum código fornecido"}), 400
+
+        codes_ref = db.reference("codes")
+
+        for code in codes:
+            codes_ref.child(code).set(True)  # Salva o código no Firebase
+
+        return jsonify({"message": "✅ Códigos adicionados com sucesso!", "codes": codes}), 201
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
