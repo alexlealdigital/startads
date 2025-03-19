@@ -36,46 +36,33 @@ def get_ads():
     ads = load_ads()
     return jsonify(ads), 200
 
-# 🔹 Rota para adicionar um novo anúncio (verifica código antes)
-@app.route("/ads", methods=["POST"])
-def add_ad():
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"error": "Dados inválidos"}), 400
+# 🔹 Rota para adicionar um novo anúncio (verifica código antes)/////////////////////////////////////////////////
+@app.route("/validate_code", methods=["POST"])
+def validate_code():
+    data = request.get_json()
+    user_code = data.get("code")
 
-        image = data.get("image")
-        link = data.get("link")
-        description = data.get("description")
-        code = data.get("code")  # Código fornecido pelo usuário
+    if not user_code:
+        return jsonify({"error": "Código não fornecido"}), 400
 
-        if not image or not link or not description or not code:
-            return jsonify({"error": "Todos os campos são obrigatórios"}), 400
+    # Referência ao banco de dados
+    codes_ref = db.reference("codes")
+    codes_data = codes_ref.get()
 
-        # 🔹 Verifica se o código de pagamento é válido
-        codes_ref = db.reference("codes")
-        valid_code = codes_ref.child(code).get()
+    if not codes_data:
+        return jsonify({"error": "Nenhum código encontrado"}), 404
 
-        if not valid_code:
-            return jsonify({"error": "Código inválido ou já utilizado"}), 400
+    # Verifica se o código existe dentro de algum dos registros
+    for key, value in codes_data.items():
+        if value.get("code") == user_code and value.get("valid", False):
+            # Código encontrado, marcamos como inválido (já utilizado)
+            codes_ref.child(key).update({"valid": False})
+            return jsonify({"message": "Código válido!", "status": "success"}), 200
 
-        # 🔹 Adiciona o anúncio ao Firebase
-        ref = db.reference("ads")
-        new_ad_ref = ref.push({
-            "image": image,
-            "link": link,
-            "description": description
-        })
+    return jsonify({"error": "Código inválido ou já utilizado"}), 400
 
-        # 🔹 Deleta o código usado para evitar reutilização
-        codes_ref.child(code).delete()
 
-        return jsonify({"message": "✅ Anúncio salvo com sucesso!", "id": new_ad_ref.key}), 201
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# 🔹 Rota para adicionar códigos de pagamento ao Firebase
+# 🔹 Rota para adicionar códigos de pagamento ao Firebase//////////////////////////////////////////////////////////////////
 @app.route("/add_codes", methods=["POST"])
 def add_codes():
     try:
