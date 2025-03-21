@@ -24,6 +24,22 @@ else:
 IMGUR_CLIENT_ID = "8823fb7cd2338d3"
 IMGUR_UPLOAD_URL = "https://api.imgur.com/3/upload"
 
+def upload_to_imgur(image_path):
+    try:
+        with open(image_path, "rb") as image_file:
+            headers = {"Authorization": f"Client-ID {IMGUR_CLIENT_ID}"}
+            files = {"image": image_file}
+            response = requests.post(IMGUR_UPLOAD_URL, headers=headers, files=files)
+
+            if response.status_code == 200:
+                return response.json()["data"]["link"]
+            else:
+                print("❌ Erro no upload Imgur:", response.json())
+                return None
+    except Exception as e:
+        print(f"❌ Exceção ao enviar para Imgur: {e}")
+        return None
+
 # 🔹 Função para carregar anúncios do Firebase
 def load_ads():
     ref = db.reference("ads")
