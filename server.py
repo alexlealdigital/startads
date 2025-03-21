@@ -42,18 +42,17 @@ def validate_code(code):
     return False
 
 # 🔹 Função para fazer upload da imagem para o Imgur
-def upload_to_imgur(image_path):
+def upload_to_imgur(image_file):
     try:
-        with open(image_path, "rb") as image_file:
-            headers = {"Authorization": f"Client-ID {IMGUR_CLIENT_ID}"}
-            files = {"image": image_file}
-            response = requests.post(IMGUR_UPLOAD_URL, headers=headers, files=files)
+        headers = {"Authorization": f"Client-ID {IMGUR_CLIENT_ID}"}
+        files = {"image": image_file}
+        response = requests.post(IMGUR_UPLOAD_URL, headers=headers, files=files)
 
-            if response.status_code == 200:
-                return response.json()["data"]["link"]
-            else:
-                print(f"❌ Erro ao enviar imagem para Imgur: {response.json()}")
-                return None
+        if response.status_code == 200:
+            return response.json()["data"]["link"]
+        else:
+            print(f"❌ Erro ao enviar imagem para Imgur: {response.json()}")
+            return None
     except Exception as e:
         print(f"❌ Erro inesperado ao enviar imagem: {e}")
         return None
@@ -73,33 +72,33 @@ def get_ads():
 @app.route("/ads", methods=["POST"])
 def add_ad():
     try:
-        data = request.get_json()
-        if not data:
-            return jsonify({"error": "Dados inválidos"}), 400
+        if request.content_type.startswith('multipart/form-data'):
+            image_file = request.files.get('image')
+            link = request.form.get('link')
+            description = request.form.get('description')
+            code = request.form.get('code')
 
-        image_path = data.get("image")  # caminho local da imagem
-        link = data.get("link")
-        description = data.get("description")
-        code = data.get("code")
+            if not image_file or not link or not description or not code:
+                return jsonify({"error": "Todos os campos são obrigatórios"}), 400
 
-        if not image_path or not link or not description or not code:
-            return jsonify({"error": "Todos os campos são obrigatórios"}), 400
+            if not validate_code(code):
+                return jsonify({"error": "Código inválido ou já utilizado"}), 400
 
-        if not validate_code(code):
-            return jsonify({"error": "Código inválido ou já utilizado"}), 400
+            image_url = upload_to_imgur(image_file)
+            if not image_url:
+                return jsonify({"error": "Erro ao fazer upload da imagem"}), 500
 
-        image_url = upload_to_imgur(image_path)
-        if not image_url:
-            return jsonify({"error": "Erro ao fazer upload da imagem"}), 500
+            ref = db.reference("ads")
+            new_ad = ref.push({
+                "image": image_url,
+                "link": link,
+                "description": description
+            })
 
-        ref = db.reference("ads")
-        new_ad = ref.push({
-            "image": image_url,
-            "link": link,
-            "description": description
-        })
+            return jsonify({"message": "Anúncio salvo com sucesso!", "id": new_ad.key}), 201
 
-        return jsonify({"message": "Anúncio salvo com sucesso!", "id": new_ad.key}), 201
+        else:
+            return jsonify({"error": "Tipo de conteúdo inválido. Use multipart/form-data."}), 415
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
