@@ -103,14 +103,14 @@ def add_ad():
             return jsonify({"error": "Código inválido ou já utilizado"}), 400
 
         # 🔹 Fazer upload da imagem para Imgur antes de salvar no Firebase
-        uploaded_image_url = upload_to_imgur(image)
-        if not uploaded_image_url:
-            return jsonify({"error": "Falha ao fazer upload da imagem"}), 500
+       image_url = upload_to_imgur(image_path)
+        if not image_url:
+            return jsonify({"error": "Erro ao enviar imagem para o Imgur"}), 500
 
         # 🔹 Salvar anúncio no Firebase
         ref = db.reference("ads")
-        new_ad_ref = ref.push({
-            "image": uploaded_image_url,
+        new_ad = ref.push({
+            "image": image_url,
             "link": link,
             "description": description
         })
