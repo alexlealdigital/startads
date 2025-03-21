@@ -89,9 +89,9 @@ def add_ad():
             return jsonify({"error": "Código inválido ou já utilizado"}), 400
 
        image_url = upload_to_imgur(image_path)
-if not image_url:
-    print(f"⚠️ Falha ao enviar imagem: {image_path}")
-    return jsonify({"error": f"Erro ao enviar imagem para o Imgur: {image_path}"}), 500
+       if not image_url:
+       print(f"⚠️ Falha ao enviar imagem: {image_path}")
+       return jsonify({"error": f"Erro ao enviar imagem para o Imgur: {image_path}"}), 500
 
 
         ref = db.reference("ads")
