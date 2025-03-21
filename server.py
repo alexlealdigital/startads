@@ -123,5 +123,20 @@ def add_codes():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# 🔹 Rota para apenas validar o código (sem publicar anúncio ainda)
+@app.route("/validate_code", methods=["POST"])
+def validate_code_route():
+    data = request.get_json()
+    code = data.get("code")
+
+    if not code:
+        return jsonify({"error": "Código não fornecido"}), 400
+
+    ref = db.reference(f"codes/{code}")
+    if ref.get() == True:
+        return jsonify({"message": "Código válido!"}), 200
+    return jsonify({"error": "Código inválido ou já utilizado"}), 400
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000, debug=True)
