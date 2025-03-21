@@ -123,20 +123,33 @@ def add_codes():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# 🔹 Rota para apenas validar o código (sem publicar anúncio ainda)
 @app.route("/validate_code", methods=["POST"])
-def validate_code_route():
-    data = request.get_json()
-    code = data.get("code")
+def validate_code():
+    try:
+        data = request.get_json()
+        code_to_validate = data.get("code")
 
-    if not code:
-        return jsonify({"error": "Código não fornecido"}), 400
+        if not code_to_validate:
+            return jsonify({"error": "Código não fornecido"}), 400
 
-    ref = db.reference(f"codes/{code}")
-    if ref.get() == True:
-        return jsonify({"message": "Código válido!"}), 200
-    return jsonify({"error": "Código inválido ou já utilizado"}), 400
+        # 🔹 Buscar todos os códigos no Firebase
+        ref = db.reference("codes")
+        codes_data = ref.get()
 
+        if not codes_data:
+            return jsonify({"error": "Nenhum código disponível"}), 400
+
+        # 🔹 Percorrer os códigos armazenados
+        for key, value in codes_data.items():
+            if value["code"] == code_to_validate and value["valid"]:
+                # Código encontrado e válido, então o marcamos como inválido (para evitar reuso)
+                ref.child(key).update({"valid": False})
+                return jsonify({"message": "Código válido!"}), 200
+
+        return jsonify({"error": "Código inválido ou já utilizado"}), 400
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000, debug=True)
