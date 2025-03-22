@@ -80,10 +80,7 @@ def add_ad():
 
             if not image_file or not link or not description or not code:
                 return jsonify({"error": "Todos os campos são obrigatórios"}), 400
-
-            if not validate_code(code):
-                return jsonify({"error": "Código inválido ou já utilizado"}), 400
-
+            
             image_url = upload_to_imgur(image_file)
             if not image_url:
                 return jsonify({"error": "Erro ao fazer upload da imagem"}), 500
