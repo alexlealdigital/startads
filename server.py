@@ -45,13 +45,19 @@ def validate_code(code):
 def upload_to_imgur(image_file):
     try:
         headers = {"Authorization": f"Client-ID {IMGUR_CLIENT_ID}"}
-        files = {"image": (image_file.filename, image_file.stream, image_file.mimetype)}
+        files = {
+            "image": (
+                image_file.filename,
+                image_file.stream,
+                image_file.mimetype
+            )
+        }
         response = requests.post(IMGUR_UPLOAD_URL, headers=headers, files=files)
 
         if response.status_code == 200:
             return response.json()["data"]["link"]
         else:
-            print(f"❌ Erro ao enviar imagem para Imgur: {response.json()}")
+            print(f"❌ Erro ao enviar imagem para Imgur: {response.text}")
             return None
     except Exception as e:
         print(f"❌ Erro inesperado ao enviar imagem: {e}")
