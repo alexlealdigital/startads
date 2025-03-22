@@ -45,7 +45,7 @@ def validate_code(code):
 def upload_to_imgur(image_file):
     try:
         headers = {"Authorization": f"Client-ID {IMGUR_CLIENT_ID}"}
-        files = {"image": image_file}
+        files = {"image": (image_file.filename, image_file.stream, image_file.mimetype)}
         response = requests.post(IMGUR_UPLOAD_URL, headers=headers, files=files)
 
         if response.status_code == 200:
