@@ -34,6 +34,10 @@ def upload_to_imgur(image_file):
 
         if response.status_code == 200:
             return response.json()["data"]["link"]
+        elif response.status_code == 429:  # Too Many Requests
+            print("❌ Limite de requisições excedido no Imgur. Aguardando 10 segundos...")
+            time.sleep(10)  # Aguarda 10 segundos antes de tentar novamente
+            return upload_to_imgur(image_file)  # Tenta novamente
         else:
             print(f"❌ Erro ao enviar imagem para Imgur: {response.text}")
             return None
