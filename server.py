@@ -25,6 +25,26 @@ else:
 IMGUR_CLIENT_ID = "8823fb7cd2338d3"
 IMGUR_UPLOAD_URL = "https://api.imgur.com/3/upload"
 
+# 🔹 Função para fazer upload da imagem para o Imgur
+def upload_to_imgur(image_file):
+    try:
+        headers = {"Authorization": f"Client-ID {IMGUR_CLIENT_ID}"}
+        files = {"image": (image_file.filename, image_file.stream, image_file.mimetype)}
+        response = requests.post(IMGUR_UPLOAD_URL, headers=headers, files=files)
+
+        if response.status_code == 200:
+            return response.json()["data"]["link"]
+        elif response.status_code == 429:  # Too Many Requests
+            print("❌ Limite de requisições excedido no Imgur. Aguardando 10 segundos...")
+            time.sleep(10)  # Aguarda 10 segundos antes de tentar novamente
+            return upload_to_imgur(image_file)  # Tenta novamente
+        else:
+            print(f"❌ Erro ao enviar imagem para Imgur: {response.text}")
+            return None
+    except Exception as e:
+        print(f"❌ Erro inesperado ao enviar imagem: {e}")
+        return None
+
 # 🔹 Rota para testar se a API está rodando
 @app.route("/", methods=["GET"])
 def home():
@@ -51,14 +71,9 @@ def add_ad():
                 return jsonify({"error": "Todos os campos são obrigatórios"}), 400
 
             # Faz o upload da imagem para o Imgur
-            headers = {"Authorization": f"Client-ID {IMGUR_CLIENT_ID}"}
-            files = {"image": (image_file.filename, image_file.stream, image_file.mimetype)}
-            response = requests.post(IMGUR_UPLOAD_URL, headers=headers, files=files)
-
-            if response.status_code != 200:
+            image_url = upload_to_imgur(image_file)
+            if not image_url:
                 return jsonify({"error": "Erro ao enviar imagem para o Imgur"}), 500
-
-            image_url = response.json()["data"]["link"]
 
             # Salva os dados no Firebase
             ref = db.reference("ads")
