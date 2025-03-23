@@ -2,12 +2,27 @@ from flask import Flask, request, jsonify
 import requests
 import time
 import firebase_admin
-from firebase_admin import credentials, firestore
+from firebase_admin import credentials, db
+import os
+import json
 
 # Inicializa o Firebase
-cred = credentials.Certificate('caminho/para/sua/chave-firebase.json')  # Substitua pelo caminho da sua chave
-firebase_admin.initialize_app(cred)
-db = firestore.client()
+def initialize_firebase():
+    # Carrega a chave do Firebase a partir da variável de ambiente
+    firebase_key = os.getenv('FIREBASE_KEY')
+    if not firebase_key:
+        raise ValueError("A variável de ambiente FIREBASE_KEY não está configurada.")
+
+    # Converte a chave de string JSON para um dicionário
+    firebase_key_dict = json.loads(firebase_key)
+
+    # Configura o Firebase
+    cred = credentials.Certificate(firebase_key_dict)
+    firebase_admin.initialize_app(cred, {
+        'databaseURL': 'https://adsdados-default-rtdb.firebaseio.com/'  # URL do Realtime Database
+    })
+
+initialize_firebase()
 
 app = Flask(__name__)
 
@@ -56,7 +71,7 @@ def create_ad():
     except Exception as e:
         return jsonify({"error": f"Erro inesperado: {str(e)}"}), 500
 
-    # Lógica para salvar os dados no Firebase
+    # Lógica para salvar os dados no Firebase Realtime Database
     ad_data = {
         'description': description,
         'image': image_url,
@@ -65,8 +80,10 @@ def create_ad():
     }
 
     try:
-        # Adiciona os dados ao Firestore
-        db.collection('ads').add(ad_data)
+        # Salva os dados no Realtime Database
+        ref = db.reference('ads')  # Referência para o nó 'ads'
+        new_ad_ref = ref.push()  # Cria um novo nó com um ID único
+        new_ad_ref.set(ad_data)  # Adiciona os dados ao nó
     except Exception as e:
         return jsonify({"error": f"Erro ao salvar no Firebase: {str(e)}"}), 500
 
