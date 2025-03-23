@@ -13,14 +13,19 @@ def initialize_firebase():
     if not firebase_key:
         raise ValueError("A variável de ambiente FIREBASE_KEY não está configurada.")
 
-    # Converte a chave de string JSON para um dicionário
-    firebase_key_dict = json.loads(firebase_key)
+    try:
+        # Converte a chave de string JSON para um dicionário
+        firebase_key_dict = json.loads(firebase_key)
 
-    # Configura o Firebase
-    cred = credentials.Certificate(firebase_key_dict)
-    firebase_admin.initialize_app(cred, {
-        'databaseURL': 'https://adsdados-default-rtdb.firebaseio.com/'  # URL do Realtime Database
-    })
+        # Configura o Firebase
+        cred = credentials.Certificate(firebase_key_dict)
+        firebase_admin.initialize_app(cred, {
+            'databaseURL': 'https://adsdados-default-rtdb.firebaseio.com/'  # URL do Realtime Database
+        })
+    except json.JSONDecodeError as e:
+        raise ValueError("A chave do Firebase não é um JSON válido.") from e
+    except ValueError as e:
+        raise ValueError(f"Erro ao carregar a chave do Firebase: {str(e)}") from e
 
 initialize_firebase()
 
