@@ -37,7 +37,7 @@ def validate_code(code):
     if codes:
         for key, value in codes.items():
             if value.get("code") == code and value.get("valid", False):
-                ref.child(key).update({"valid": False})  # Invalida corretamente sem criar novo campo
+                ref.child(key).update({"valid": False})  # Atualiza o campo "valid" corretamente
                 return True
     return False
 
