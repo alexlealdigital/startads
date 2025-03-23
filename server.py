@@ -32,10 +32,13 @@ def load_ads():
 
 # 🔹 Função para verificar código de pagamento
 def validate_code(code):
-    ref = db.reference(f"codes/{code}")
-    if ref.get() == True:
-        ref.delete()  # Remove o código após o uso
-        return True
+    ref = db.reference("codes")
+    codes = ref.get()
+    if codes:
+        for key, value in codes.items():
+            if value.get("code") == code and value.get("valid", False):
+                ref.child(key).update({"valid": False})  # Invalida o código
+                return True
     return False
 
 # 🔹 Função para fazer upload da imagem para o Imgur
@@ -116,7 +119,7 @@ def add_codes():
 
         ref = db.reference("codes")
         for code in codes:
-            ref.child(code).set(True)
+            ref.push({"code": code, "valid": True})
 
         return jsonify({"message": "Códigos adicionados com sucesso!"}), 201
 
