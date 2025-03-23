@@ -31,6 +31,11 @@ initialize_firebase()
 
 app = Flask(__name__)
 
+# Rota para a URL raiz
+@app.route('/')
+def index():
+    return "Servidor Flask está rodando! 🚀"
+
 # Substitua pelo seu Client-ID do Imgur
 IMGUR_CLIENT_ID = '8823fb7cd2338d3'
 
