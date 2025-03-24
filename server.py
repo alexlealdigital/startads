@@ -33,12 +33,17 @@ def load_ads():
 # 🔹 Função para verificar código de pagamento
 def validate_code(code):
     ref = db.reference("codes")
-    codes = ref.get()
-    if codes:
-        for key, value in codes.items():
-            if value.get("code") == code and value.get("valid", False):
-                ref.child(key).update({"valid": False})  # Invalida o código
-                return True
+    query = ref.order_by_child("code").equal_to(str(code)).get()
+    
+    if not query:
+        return False
+        
+    for key, value in query.items():
+        if value.get("valid", False):
+            # Atualização atômica
+            db.reference(f"codes/{key}/valid").set(False)
+            return True
+            
     return False
 
 # 🔹 Função para fazer upload da imagem para o Imgur
@@ -108,6 +113,7 @@ def add_ad():
         return jsonify({"error": str(e)}), 500
 
 # 🔹 Rota para adicionar novos códigos de pagamento ao Firebase
+# Rota corrigida para /add_codes
 @app.route("/add_codes", methods=["POST"])
 def add_codes():
     try:
@@ -119,10 +125,12 @@ def add_codes():
 
         ref = db.reference("codes")
         for code in codes:
-            ref.child(code).set(True)
+            ref.push({  # Usar push para gerar ID único
+                "code": str(code),
+                "valid": True
+            })
 
         return jsonify({"message": "Códigos adicionados com sucesso!"}), 201
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
