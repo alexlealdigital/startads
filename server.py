@@ -5,6 +5,8 @@ import os
 import json
 import requests
 
+FIREBASE_CODES_URL = "https://adsdados-default-rtdb.firebaseio.com/codes.json"
+
 app = Flask(__name__)
 
 # 🔹 Configuração do Firebase (usando variável de ambiente do Render)
@@ -32,13 +34,44 @@ def load_ads():
 
 
 # 🔹 Função para verificar código de pagamento
-def validate_code(code):
-    ref = db.reference(f"codes/{code}")
-    if ref.get() == True:
-        ref.delete()  # Remove o código após o uso
-        return True
-    return False
+ef validate_code(code):
+    """
+    Valida e invalida códigos de pagamento de forma segura
+    Retorna:
+    - True: código válido e foi invalidado
+    - False: código inválido ou já foi utilizado
+    """
+    try:
+        # 1. Busca o código no Firebase
+        response = requests.get(FIREBASE_CODES_URL)
+        if response.status_code != 200:
+            return False
 
+        codes = response.json() or {}
+        
+        # 2. Procura o código específico
+        for code_id, code_data in codes.items():
+            if isinstance(code_data, dict) and code_data.get("code") == str(code):
+                if code_data.get("valid", False):
+                    # 3. Atualização segura
+                    updates = {
+                        "valid": False,
+                        "used_at": datetime.now().isoformat(),
+                        "used_by": "server_validation"
+                    }
+                    
+                    patch_response = requests.patch(
+                        f"https://adsdados-default-rtdb.firebaseio.com/codes/{code_id}.json",
+                        json=updates
+                    )
+                    
+                    return patch_response.status_code in [200, 204]
+                return False
+        return False
+        
+    except Exception as e:
+        print(f"Erro na validação: {str(e)}")
+        return False
 # 🔹 Função para fazer upload da imagem para o Imgur
 def upload_to_imgur(image_url):
     try:
