@@ -38,9 +38,10 @@ def validate_code(code):
     if codes:
         for key, value in codes.items():
             if value.get("code") == code and value.get("valid", False):
-                ref.child(key).update({"valid": False})  # Marca como usado
+                ref.child(key).child("valid").set(False)  # Aqui está a correção real
                 return True
     return False
+
 
 # 🔹 Função para fazer upload da imagem para o Imgur
 def upload_to_imgur(image_url):
