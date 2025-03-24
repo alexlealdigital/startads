@@ -33,7 +33,7 @@ def load_ads():
 
 
 # 🔹 Função para verificar código de pagamento
-ef validate_code(code):
+def validate_code(code):
     """
     Valida e invalida códigos de pagamento de forma segura
     Retorna:
