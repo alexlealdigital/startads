@@ -30,7 +30,7 @@ def load_ads():
     ads = ref.get()
     return list(ads.values()) if ads else []
 
-# 🔹 Função para verificar código de pagamento
+
 # 🔹 Função para verificar código de pagamento
 def validate_code(code):
     ref = db.reference(f"codes/{code}")
