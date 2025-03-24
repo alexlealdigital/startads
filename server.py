@@ -35,24 +35,20 @@ def validate_and_invalidate_code(code):
     ref = db.reference("codes")
     
     try:
-        # Encontra e invalida o código numa operação atômica
         snapshot = ref.order_by_child("code").equal_to(code).get()
         
-        if not snapshot:
-            return False  # Código não existe
-            
         for key, value in snapshot.items():
             if value.get("valid", False):
-                # Atualização atômica para invalidar
-                ref.child(key).update({"valid": False})
+                # Remove o nó completo e recria com valid=False
+                ref.child(key).set({
+                    "code": value["code"],
+                    "valid": False
+                })
                 return True
-                
-        return False  # Código existe mas já está inválido
-        
-    except Exception as e:
-        print(f"Erro ao validar código: {e}")
         return False
-
+    except Exception as e:
+        print(f"Falha crítica: {str(e)}")
+        return False
 
 # 🔹 Função para fazer upload da imagem para o Imgur
 def upload_to_imgur(image_url):
