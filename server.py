@@ -31,16 +31,27 @@ def load_ads():
     return list(ads.values()) if ads else []
 
 # 🔹 Função para verificar código de pagamento
-def validate_code(code):
+def validate_and_invalidate_code(code):
     ref = db.reference("codes")
-    codes = ref.get()
-
-    if codes:
-        for key, value in codes.items():
-            if value.get("code") == code and value.get("valid", False):
-                ref.child(key).child("valid").set(False)  # Aqui está a correção real
+    
+    try:
+        # Encontra e invalida o código numa operação atômica
+        snapshot = ref.order_by_child("code").equal_to(code).get()
+        
+        if not snapshot:
+            return False  # Código não existe
+            
+        for key, value in snapshot.items():
+            if value.get("valid", False):
+                # Atualização atômica para invalidar
+                ref.child(key).update({"valid": False})
                 return True
-    return False
+                
+        return False  # Código existe mas já está inválido
+        
+    except Exception as e:
+        print(f"Erro ao validar código: {e}")
+        return False
 
 
 # 🔹 Função para fazer upload da imagem para o Imgur
