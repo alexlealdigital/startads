@@ -31,51 +31,13 @@ def load_ads():
     return list(ads.values()) if ads else []
 
 # 🔹 Função para verificar código de pagamento
-def validate_and_track_code(code, user_id=None):
-    """
-    Versão premium que:
-    - Valida códigos com segurança
-    - Mantém histórico de uso
-    - Previne duplicatas
-    - Registra metadados de auditoria
-    """
-    ref = db.reference("codes")
-    audit_ref = db.reference("code_audit")
-    
-    try:
-        # 1. Busca o código de forma segura
-        query = ref.order_by_child("code").equal_to(str(code)).limit_to_first(1).get()
-        
-        if not query:
-            print(f"Código {code} não encontrado")
-            return False
-            
-        code_id, code_data = next(iter(query.items()))
-        
-        # 2. Verifica validade com lock otimista
-        if not code_data.get("valid", False):
-            print(f"Código {code} já foi utilizado")
-            return False
-            
-        # 3. Atualização atômica com metadados
-        updates = {
-            f"codes/{code_id}/valid": False,
-            f"codes/{code_id}/used_at": firebase_admin.db.ServerValue.TIMESTAMP,
-            f"codes/{code_id}/used_by": user_id,
-            f"code_audit/{code_id}_{datetime.now().isoformat()}": {
-                "code": code,
-                "user": user_id,
-                "timestamp": firebase_admin.db.ServerValue.TIMESTAMP
-            }
-        }
-        
-        db.reference().update(updates)
-        print(f"Código {code} validado e registrado")
+# 🔹 Função para verificar código de pagamento
+def validate_code(code):
+    ref = db.reference(f"codes/{code}")
+    if ref.get() == True:
+        ref.delete()  # Remove o código após o uso
         return True
-        
-    except Exception as e:
-        print(f"Erro na validação: {str(e)}")
-        return False
+    return False
 
 # 🔹 Função para fazer upload da imagem para o Imgur
 def upload_to_imgur(image_url):
