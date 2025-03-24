@@ -5,10 +5,9 @@ import os
 import json
 import requests
 
-FIREBASE_CODES_URL = "https://adsdados-default-rtdb.firebaseio.com/codes.json"
-
 app = Flask(__name__)
 
+FIREBASE_CODES_URL = "https://adsdados-default-rtdb.firebaseio.com/codes.json"
 # 🔹 Configuração do Firebase (usando variável de ambiente do Render)
 firebase_key_json = os.environ.get("FIREBASE_KEY")
 
