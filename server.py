@@ -35,19 +35,22 @@ def validate_and_invalidate_code(code):
     ref = db.reference("codes")
     
     try:
-        snapshot = ref.order_by_child("code").equal_to(code).get()
+        # Busca o código específico
+        query = ref.order_by_child("code").equal_to(code).get()
         
-        for key, value in snapshot.items():
-            if value.get("valid", False):
-                # Remove o nó completo e recria com valid=False
-                ref.child(key).set({
-                    "code": value["code"],
-                    "valid": False
-                })
+        if not query:
+            return False
+            
+        for key, value in query.items():
+            if isinstance(value, dict) and value.get("valid", False):
+                # SOLUÇÃO DEFINITIVA - Atualização direta no caminho completo
+                db.reference(f"codes/{key}/valid").set(False)
                 return True
+                
         return False
+        
     except Exception as e:
-        print(f"Falha crítica: {str(e)}")
+        print(f"Erro ao invalidar código: {str(e)}")
         return False
 
 # 🔹 Função para fazer upload da imagem para o Imgur
