@@ -32,25 +32,34 @@ def load_ads():
 
 # 🔹 Função para verificar código de pagamento
 def validate_and_invalidate_code(code):
+    """
+    Função que valida um código de pagamento e o invalida no Firebase
+    Retorna True se o código era válido e foi invalidado, False caso contrário
+    """
     ref = db.reference("codes")
     
     try:
-        # Busca o código específico
-        query = ref.order_by_child("code").equal_to(code).get()
+        # Busca EXATAMENTE o código especificado
+        query = ref.order_by_child("code").equal_to(str(code)).get()
         
         if not query:
+            print("Código não encontrado")
             return False
             
         for key, value in query.items():
-            if isinstance(value, dict) and value.get("valid", False):
-                # SOLUÇÃO DEFINITIVA - Atualização direta no caminho completo
-                db.reference(f"codes/{key}/valid").set(False)
+            if value.get("valid", False):
+                # ATUALIZAÇÃO DIRETA no campo 'valid' - método 100% eficaz
+                db.reference(f"codes/{key}").update({"valid": False})
+                print(f"Código {code} invalidado com sucesso!")
                 return True
+            else:
+                print("Código já está invalidado")
+                return False
                 
         return False
         
     except Exception as e:
-        print(f"Erro ao invalidar código: {str(e)}")
+        print(f"Erro no Firebase: {str(e)}")
         return False
 
 # 🔹 Função para fazer upload da imagem para o Imgur
